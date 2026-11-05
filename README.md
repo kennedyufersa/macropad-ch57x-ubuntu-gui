@@ -108,7 +108,7 @@ Se nenhum desses aparecer, **não tente gravar ainda**: identifique primeiro o d
 ## 7. Abrir a interface gráfica
 
 ```bash
-python3 padconf.py
+python3 padconf_pt_BR.py
 ```
 
 A janela deverá mostrar as seis teclas e as três ações do knob: rotação anti-horária, pressionamento e rotação horária.
@@ -165,7 +165,7 @@ As funções de teclado e mídia ficam armazenadas no dispositivo compatível. A
 
 ```bash
 cd ~/macropad-ch57x-ubuntu-gui
-python3 padconf.py
+python3 padconf_pt_BR.py
 ```
 
 Não é necessário repetir a instalação.
