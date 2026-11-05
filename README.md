@@ -19,7 +19,7 @@ Se ainda não clonou o repositório:
 
 ```bash
 cd ~
-git clone https://github.com/iam-raccoon/macropad-ch57x-ubuntu-gui.git
+git clone https://github.com/kennedyufersa/macropad-ch57x-ubuntu-gui.git
 ```
 
 Entre na pasta:
