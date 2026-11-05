@@ -1,111 +1,224 @@
-# macropad-ch57x-ubuntu-gui
+# MacroPad CH57x no Ubuntu — instalação e interface em português
 
-A small **Linux GUI** to configure cheap **6-key + knob macro pads** (the ubiquitous
-`1189:8890` "ch57x" pads) — assign keys, shortcuts, media controls, and **app launchers**
-to each button/knob by clicking, then flash it straight to the pad.
+Guia para instalar e configurar um **macro keypad TISHRIC de 6 teclas e 1 knob** no Ubuntu usando o projeto [macropad-ch57x-ubuntu-gui](https://github.com/iam-raccoon/macropad-ch57x-ubuntu-gui).
 
-No Windows-only vendor software required. Built as a friendly front-end over
-[`kriomant/ch57x-keyboard-tool`](https://github.com/kriomant/ch57x-keyboard-tool).
+> **Pré-requisito:** o arquivo `padconf_pt_BR.py` já deve estar dentro da pasta `macropad-ch57x-ubuntu-gui`. Ele é uma versão traduzida da interface original.
 
-> **한국어 요약**: 윈도우 전용 프로그램 없이, 리눅스에서 6키+노브 매크로패드(1189:8890)를
-> 클릭으로 설정하고 패드에 바로 굽는 GUI. 버튼/노브에 키·단축키·미디어·앱실행을 지정할 수 있고,
-> '앱 실행'은 F키↔키심↔GNOME 단축키 연결을 앱이 자동 처리한다.
+## 1. Instalar dependências
 
-![status](https://img.shields.io/badge/platform-Linux%20(X11%2FGNOME)-informational)
-
----
-
-## Why this exists
-
-These pads **store the key mapping in the pad's own firmware**. Out of the box, *every*
-key often sends the **same** keycode, so you cannot tell the buttons apart in software —
-you must **write** a mapping into the device. The official configurator is Windows-only.
-
-`ch57x-keyboard-tool` can flash the pad from Linux via a YAML file. This project wraps it
-in a GUI and, crucially, **automates the annoying parts**:
-
-- **App launchers.** A macro pad can only send keystrokes, not "run a program". So to
-  launch an app we assign a phantom function key (**F14–F18**, which no real keyboard has),
-  then register a GNOME custom shortcut for it. But there's a catch (see below) — the app
-  handles it all: you just type `code` or `firefox`.
-- **The F13/keysym gotcha.** On many distros the X11 keymap turns HID `F13…F24` into
-  `XF86Tools` / `XF86Launch5…9` keysyms rather than `F13…F24`. Binding a GNOME shortcut to
-  `F13` silently fails, and `F13` (=`XF86Tools`) even opens *Settings*. The app detects the
-  **actual** keysym for each F-key at runtime (via `xmodmap`) and binds to that.
-
----
-
-## Features
-
-- 3×2 buttons + knob (CCW / press / CW), edited visually.
-- Per-slot action: **Key / shortcut**, **Media / volume**, or **Launch app**.
-- One click to **validate + flash the pad + sync GNOME shortcuts**.
-- No `sudo` needed after a one-time udev rule.
-- Config is a plain JSON source-of-truth; generated YAML is compatible with `ch57x-keyboard-tool`.
-
-## Supported devices
-
-Same as ch57x-keyboard-tool: USB IDs `1189:8890`, `1189:8840`, `1189:8842`.
-This GUI is tuned for the **3×2 keys + 1 knob** variant. (Other layouts: tweak `rows/columns/knobs`.)
-
-## Requirements
-
-- Linux with **X11** and **GNOME** (uses `gsettings` + `xmodmap`).
-- Python 3 + **PyQt5**  ·  `curl`  ·  member of the `plugdev` group.
+Abra um terminal e execute:
 
 ```bash
-sudo apt install python3-pyqt5 curl
+sudo apt update
+sudo apt install -y git python3 python3-pyqt5 curl x11-xserver-utils
 ```
 
-## Install
+## 2. Clonar o projeto
+
+Se ainda não clonou o repositório:
 
 ```bash
+cd ~
 git clone https://github.com/iam-raccoon/macropad-ch57x-ubuntu-gui.git
-cd macropad-ch57x-ubuntu-gui
-
-./install.sh              # downloads the ch57x-keyboard-tool binary next to padconf.py
-sudo ./setup-udev.sh      # one-time: lets you flash the pad without sudo
-# then unplug & replug the pad
 ```
 
-## Usage
+Entre na pasta:
+
+```bash
+cd ~/macropad-ch57x-ubuntu-gui
+```
+
+**Se já clonou o projeto, não execute `git clone` novamente:** apenas entre na pasta existente.
+
+Confira os arquivos:
+
+```bash
+ls -la
+```
+
+Confirme que `padconf_pt_BR.py` está nessa pasta antes de seguir para a etapa 5.
+
+## 3. Instalar a ferramenta de gravação
+
+Dentro da pasta do projeto, execute:
+
+```bash
+./install.sh
+```
+
+Esse script instala o `ch57x-keyboard-tool`, responsável por gravar a configuração no keypad.
+
+Confira se o executável foi instalado:
+
+```bash
+ls -l ch57x-keyboard-tool
+```
+
+## 4. Configurar permissões USB
+
+```bash
+sudo ./setup-udev.sh
+```
+
+Depois:
+
+1. Desconecte o keypad da porta USB.
+2. Conecte-o novamente.
+3. Se for solicitado atualizar sua associação ao grupo `plugdev`, encerre a sessão do Ubuntu e entre novamente.
+
+## 5. Ativar a interface em português brasileiro
+
+Como `padconf_pt_BR.py` **já está na pasta do projeto**, não é necessário copiá-lo de `Downloads`.
+
+Faça um backup do arquivo original e instale a tradução:
+
+```bash
+cp padconf.py padconf.py.bak
+cp padconf_pt_BR.py padconf.py
+```
+
+Verifique a sintaxe Python:
+
+```bash
+python3 -m py_compile padconf.py
+```
+
+Se o comando não apresentar mensagens, não foram detectados erros de sintaxe.
+
+Para restaurar a versão original posteriormente:
+
+```bash
+cp padconf.py.bak padconf.py
+```
+
+## 6. Verificar se o keypad é compatível
+
+```bash
+lsusb | grep 1189
+```
+
+O projeto declara suporte aos seguintes IDs USB:
+
+- `1189:8890`
+- `1189:8840`
+- `1189:8842`
+
+Se nenhum desses aparecer, **não tente gravar ainda**: identifique primeiro o dispositivo com `lsusb`.
+
+## 7. Abrir a interface gráfica
 
 ```bash
 python3 padconf.py
 ```
 
-1. Click a button (or a knob direction) on the left.
-2. Pick an action type and value on the right:
-   - **Key / shortcut** — `1`, `escape`, `f5`, `ctrl-c`, `alt-tab`, `left`, …
-   - **Media / volume** — volume up/down, mute, play, …
-   - **Launch app** — `code`, `firefox`, or any command (F14–F18 + GNOME shortcut auto-managed).
-3. **💾 Save & apply to pad** — flashes the pad and syncs shortcuts.
+A janela deverá mostrar as seis teclas e as três ações do knob: rotação anti-horária, pressionamento e rotação horária.
 
-### Example: Claude Code / prompt answering
+### Verificar a sessão gráfica
 
-A handy setup is mapping the top row to answer numbered CLI prompts:
+```bash
+echo "$XDG_SESSION_TYPE"
+```
 
-| Button | Sends | Use |
-|-------:|:------|:----|
-| top-left   | `1` | Yes (always the first option) |
-| top-middle | `2` | "Yes, and don't ask again" (only on 3-option prompts) |
-| top-right  | `escape` | **No / reject** — works whether there are 2 or 3 options |
+O projeto foi desenvolvido para **GNOME com X11**. No Wayland, a interface pode abrir, mas a integração com atalhos para iniciar aplicativos pode não funcionar como esperado.
 
-> Prefer **Esc** for "No": prompts sometimes show only 2 options, where "No" is `2`, not `3`.
-> Esc rejects regardless of the option count.
+## 8. Configurar teclas e knob
 
-## Troubleshooting
+1. Clique na tecla ou na ação do knob que deseja configurar.
+2. Escolha o tipo de ação: **Tecla / Atalho**, **Mídia / Volume** ou **Abrir aplicativo**.
+3. Escolha ou digite o valor.
+4. Clique em **Salvar configuração da tecla**.
+5. Repita para os demais controles.
 
-- **A button opens *Settings* / does nothing** → the F13/keysym gotcha above. Re-run
-  *Save & apply* (the app binds to the real keysym). `F13`=`XF86Tools`=Settings is avoided.
-- **See what a key actually sends** → `python3 tools/diagnose.py` (raw evdev event viewer).
-- **All keys report the same code** → normal for an unprogrammed pad; flash it, then they differ.
-- **`Access denied` when flashing** → run `sudo ./setup-udev.sh`, replug, confirm you're in `plugdev`.
-- **Prebuilt binary won't run (`GLIBC_2.38 not found`)** → `install.sh` auto-falls back to an
-  older release (v1.5.0) that runs on older glibc (e.g. Ubuntu 22.04).
+Exemplos de atalhos:
 
-## Credits & license
+| Ação | Valor |
+| --- | --- |
+| Copiar | `ctrl-c` |
+| Colar | `ctrl-v` |
+| Recortar | `ctrl-x` |
+| Desfazer | `ctrl-z` |
+| Salvar | `ctrl-s` |
+| Alternar janelas | `alt-tab` |
+| Atualizar | `f5` |
 
-- Flashing is done by [`kriomant/ch57x-keyboard-tool`](https://github.com/kriomant/ch57x-keyboard-tool)
-  (GPL-3.0) — **not bundled**; fetched by `install.sh`.
-- This wrapper (GUI + scripts): **MIT**, see [LICENSE](LICENSE).
+Exemplo para o knob:
+
+| Movimento | Valor |
+| --- | --- |
+| Anti-horário | `volumedown` |
+| Pressionar | `mute` |
+| Horário | `volumeup` |
+
+## 9. Gravar as configurações no dispositivo
+
+Depois de configurar todos os controles:
+
+1. Clique em **Salvar e gravar no dispositivo**.
+2. Aguarde a mensagem de confirmação.
+3. Teste as teclas e o knob.
+
+> **Atenção:** salvar a configuração de uma tecla apenas atualiza o estado local. Para gravar no keypad, use **Salvar e gravar no dispositivo**.
+
+As funções de teclado e mídia ficam armazenadas no dispositivo compatível. A opção **Abrir aplicativo** depende também de atalhos registrados no GNOME do computador.
+
+## 10. Abrir o programa nas próximas vezes
+
+```bash
+cd ~/macropad-ch57x-ubuntu-gui
+python3 padconf.py
+```
+
+Não é necessário repetir a instalação.
+
+## Resumo dos comandos
+
+> Use este bloco em uma **instalação nova**, após colocar `padconf_pt_BR.py` na pasta clonada. Se o projeto já estiver clonado, pule o `git clone`.
+
+```bash
+# Dependências
+sudo apt update
+sudo apt install -y git python3 python3-pyqt5 curl x11-xserver-utils
+
+# Clone (somente se ainda não existir)
+cd ~
+git clone https://github.com/iam-raccoon/macropad-ch57x-ubuntu-gui.git
+cd ~/macropad-ch57x-ubuntu-gui
+
+# Instalação e permissões
+./install.sh
+sudo ./setup-udev.sh
+
+# Desconecte e reconecte o keypad antes de continuar.
+
+# Backup e tradução (padconf_pt_BR.py já presente nesta pasta)
+cp padconf.py padconf.py.bak
+cp padconf_pt_BR.py padconf.py
+python3 -m py_compile padconf.py
+
+# Verificação do dispositivo
+lsusb | grep 1189
+
+# Iniciar
+python3 padconf.py
+```
+
+## Solução de problemas
+
+**`cd: ... No such file or directory`**: localize a pasta clonada com:
+
+```bash
+find ~ -type d -name 'macropad-ch57x-ubuntu-gui' 2>/dev/null
+```
+
+**`cp: cannot stat 'padconf_pt_BR.py'`**: o arquivo traduzido não está na pasta atual. Confira com `pwd` e `ls -la`.
+
+**`Access denied` ao gravar**: execute `sudo ./setup-udev.sh`, reconecte o dispositivo e confira se a sessão do usuário precisa ser reiniciada.
+
+**Interface abre, mas atalhos para aplicativos falham**: confira `echo "$XDG_SESSION_TYPE"`; o projeto utiliza recursos do GNOME/X11.
+
+**Todas as teclas enviam o mesmo código antes da programação**: esse comportamento é relatado pelo projeto para dispositivos ainda não configurados.
+
+## Referências
+
+- [Interface gráfica macropad-ch57x-ubuntu-gui](https://github.com/iam-raccoon/macropad-ch57x-ubuntu-gui)
+- [Ferramenta de gravação ch57x-keyboard-tool](https://github.com/kriomant/ch57x-keyboard-tool)
