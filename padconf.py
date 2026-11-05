@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MacroPad 설정 GUI (ch57x / 1189:8890 6키+노브 전용).
+Interface de configuração do MacroPad (ch57x / 1189:8890, 6 teclas e botão giratório).
 
-- 각 버튼/노브에 '키/단축키', '미디어', '앱 실행'을 클릭으로 지정.
-- 저장하면 ch57x-keyboard-tool 용 YAML을 생성해 패드에 바로 업로드.
-- '앱 실행'은 일반 키보드에 없는 F14~F18(→XF86Launch5~9 키심)을 자동 배정하고
-  GNOME 커스텀 단축키(키심->명령)를 자동 등록/정리한다.
-- 소스 오브 트루스: ~/.config/macropad/padconf.json (여기서 YAML/단축키를 생성).
+- Configure cada tecla e o botão giratório com atalhos, controles de mídia ou abertura de aplicativos.
+- Ao salvar, gera um YAML para o ch57x-keyboard-tool e o grava no dispositivo.
+- Para abrir aplicativos, associa automaticamente F14 a F18 (keysyms XF86Launch5 a 9)
+  e gerencia atalhos personalizados do GNOME (keysym para comando).
+- Configuração principal: ~/.config/macropad/padconf.json (origem do YAML e dos atalhos).
 
-권한: 패드 USB 접근(50-ch57x udev 규칙으로 sudo 불필요), GNOME(gsettings) 세션에서 실행.
+Permissões: acesso USB via regra udev 50-ch57x (sem sudo); execução em sessão GNOME (gsettings).
 """
 import json
 import os
@@ -26,16 +26,16 @@ STATE_PATH = os.path.join(STATE_DIR, "padconf.json")
 VENDOR_ID = "4489"      # 0x1189
 PRODUCT_ID = "34960"    # 0x8890
 
-# '앱 실행'에 쓸 F키 후보 (F13=XF86Tools 는 설정과 충돌하므로 제외).
-# evdev 키코드 = X11 키코드 - 8.  F14->X키코드192 ... F18->196.
+# Teclas de função reservadas para abrir aplicativos (F13 excluída por conflito com Configurações).
+# Código evdev = código X11 - 8. F14 corresponde ao código X11 192; F18, ao 196.
 LAUNCH_FKEYS = [
     ("f14", 192), ("f15", 193), ("f16", 194), ("f17", 195), ("f18", 196),
 ]
 
 MEDIA_OPTIONS = [
-    ("volumeup", "볼륨 ▲"), ("volumedown", "볼륨 ▼"), ("mute", "음소거"),
-    ("play", "재생/정지"), ("next", "다음 곡"), ("previous", "이전 곡"),
-    ("wheelup", "휠 ▲"), ("wheeldown", "휠 ▼"), ("click", "마우스 클릭"),
+    ("volumeup", "Volume ▲"), ("volumedown", "Volume ▼"), ("mute", "Silenciar"),
+    ("play", "Reproduzir/Pausar"), ("next", "Próxima faixa"), ("previous", "Faixa anterior"),
+    ("wheelup", "Rolagem ▲"), ("wheeldown", "Rolagem ▼"), ("click", "Clique do mouse"),
 ]
 KEY_PRESETS = [
     "1", "2", "3", "escape", "enter", "tab", "space", "backspace", "delete",
@@ -45,13 +45,13 @@ KEY_PRESETS = [
 ]
 APP_PRESETS = [
     ("code", "VS Code"), ("terminator", "Terminator"),
-    ("gnome-terminal", "GNOME 터미널"), ("firefox", "Firefox"),
-    ("nautilus", "파일 관리자"), ("gnome-control-center", "설정"),
+    ("gnome-terminal", "Terminal GNOME"), ("firefox", "Firefox"),
+    ("nautilus", "Gerenciador de arquivos"), ("gnome-control-center", "Configurações"),
 ]
 
-BUTTON_LABELS = ["상단 왼쪽", "상단 가운데", "상단 오른쪽",
-                 "하단 왼쪽", "하단 가운데", "하단 오른쪽"]
-KNOB_LABELS = {"ccw": "노브 ◀ 왼쪽회전", "press": "노브 ● 누르기", "cw": "노브 ▶ 오른쪽회전"}
+BUTTON_LABELS = ["Superior esquerda", "Superior central", "Superior direita",
+                 "Inferior esquerda", "Inferior central", "Inferior direita"]
+KNOB_LABELS = {"ccw": "Knob ◀ Anti-horário", "press": "Knob ● Pressionar", "cw": "Knob ▶ Horário"}
 
 DEFAULT_STATE = {
     "buttons": [
@@ -70,7 +70,7 @@ DEFAULT_STATE = {
 }
 
 
-# ---------------- 상태 로드/저장 ----------------
+# ---------------- Carregamento e salvamento do estado ----------------
 def load_state():
     if os.path.exists(STATE_PATH):
         try:
@@ -90,9 +90,9 @@ def save_state(st):
         json.dump(st, f, ensure_ascii=False, indent=2)
 
 
-# ---------------- 키심 탐지 (앱 실행용) ----------------
+# ---------------- Identificação de keysyms (abertura de aplicativos) ----------------
 def detect_launch_keysyms():
-    """xmodmap 으로 F14~F18 의 실제 X11 키심을 조회. {fkey: keysym}."""
+    """Consulta os keysyms reais de F14 a F18 no X11 via xmodmap."""
     result = {}
     try:
         out = subprocess.check_output(["xmodmap", "-pke"], text=True,
@@ -111,26 +111,26 @@ def detect_launch_keysyms():
     return result
 
 
-# ---------------- YAML 생성 ----------------
+# ---------------- Geração do YAML ----------------
 def action_to_chord(action, launch_alloc):
-    """액션 -> ch57x YAML 에 넣을 chord 문자열."""
+    """Converte uma ação na combinação de teclas usada pelo YAML do ch57x."""
     t = action.get("type")
     v = action.get("value", "")
     if t == "launch":
-        # launch_alloc: 이 액션에 배정된 f키
+        # Tecla de função atribuída à ação de abertura de aplicativo.
         return launch_alloc.get(id(action), "escape")
     return v or "escape"
 
 
 def build_yaml_and_launches(state):
-    """YAML 문자열과, 등록할 launch 목록[(keysym, command)] 반환."""
+    """Retorna o YAML e os atalhos de aplicativos a registrar (keysym, comando)."""
     keysyms = detect_launch_keysyms()          # {fkey: keysym}
     pool = [fk for fk, _ in LAUNCH_FKEYS if fk in keysyms]
     launch_alloc = {}                          # id(action) -> fkey
     launches = []                              # (keysym, command)
     warnings = []
 
-    # 버튼 순회하며 launch 에 f키 배정
+    # Percorre as teclas e atribui uma tecla de função a cada abertura de aplicativo.
     for i, action in enumerate(state["buttons"]):
         if action.get("type") == "launch":
             if pool:
@@ -138,10 +138,10 @@ def build_yaml_and_launches(state):
                 launch_alloc[id(action)] = fk
                 launches.append((keysyms[fk], action.get("value", "").strip()))
             else:
-                warnings.append("앱 실행 슬롯이 너무 많음(F14~F18 소진). '%s' 는 무시됨."
+                warnings.append("Limite de aplicativos excedido (F14 a F18 esgotadas). Ignorando '%s'."
                                 % action.get("value"))
                 launch_alloc[id(action)] = "escape"
-    # 노브도 launch 허용
+    # O botão giratório também pode abrir aplicativos.
     for k in ("ccw", "press", "cw"):
         action = state["knob"][k]
         if action.get("type") == "launch":
@@ -150,7 +150,7 @@ def build_yaml_and_launches(state):
                 launch_alloc[id(action)] = fk
                 launches.append((keysyms[fk], action.get("value", "").strip()))
             else:
-                warnings.append("앱 실행 슬롯 초과: 노브 '%s' 무시" % k)
+                warnings.append("Limite de aplicativos excedido: ignorando ação do botão giratório '%s'." % k)
                 launch_alloc[id(action)] = "escape"
 
     b = [action_to_chord(a, launch_alloc) for a in state["buttons"]]
@@ -174,13 +174,13 @@ def build_yaml_and_launches(state):
     return yaml, launches, warnings
 
 
-# ---------------- 적용: 업로드 + 단축키 ----------------
+# ---------------- Aplicação: gravação USB e atalhos ----------------
 def run_tool(args, stdin=None):
     return subprocess.run([TOOL] + args, input=stdin, capture_output=True, text=True)
 
 
 def sync_gnome_shortcuts(launches):
-    """macropad-* 커스텀 단축키를 launches 로 재구성."""
+    """Recria os atalhos personalizados macropad-* com base em launches."""
     schema = "org.gnome.settings-daemon.plugins.media-keys"
     base = "/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings"
 
@@ -191,12 +191,12 @@ def sync_gnome_shortcuts(launches):
         return subprocess.run(["gsettings", "get"] + list(a),
                               capture_output=True, text=True).stdout.strip()
 
-    # 기존 목록에서 macropad-* 제거
+    # Remove os atalhos macropad-* da lista atual.
     cur = gget(schema, "custom-keybindings")
     paths = re.findall(r"'([^']+)'", cur)
     paths = [p for p in paths if "/macropad-" not in p]
 
-    # 새 launch 등록
+    # Registra novos atalhos para abrir aplicativos.
     for idx, (keysym, command) in enumerate(launches):
         slot = "macropad-app%d" % idx
         path = "%s/%s/" % (base, slot)
@@ -211,28 +211,28 @@ def sync_gnome_shortcuts(launches):
 
 
 def apply_state(state):
-    """상태 -> YAML 생성 -> validate -> 업로드 -> 단축키 동기화. (성공?, 메시지)"""
+    """Gera e valida YAML, grava no dispositivo e sincroniza atalhos; retorna sucesso e mensagem."""
     yaml, launches, warnings = build_yaml_and_launches(state)
     with open(YAML_PATH, "w", encoding="utf-8") as f:
         f.write(yaml)
 
     v = run_tool(["validate"], stdin=yaml)
     if v.returncode != 0:
-        return False, "YAML 검증 실패:\n" + (v.stderr or v.stdout)
+        return False, "Falha na validação do YAML:\n" + (v.stderr or v.stdout)
 
     up = run_tool(["--product-id", PRODUCT_ID, "upload"], stdin=yaml)
     if up.returncode != 0:
-        return False, "패드 업로드 실패:\n" + (up.stderr or up.stdout)
+        return False, "Falha ao gravar no dispositivo:\n" + (up.stderr or up.stdout)
 
     try:
         sync_gnome_shortcuts(launches)
-        sc_msg = "단축키 %d개 등록" % len(launches)
+        sc_msg = "%d atalho(s) registrado(s)" % len(launches)
     except Exception as e:
-        sc_msg = "단축키 등록 경고: %s" % e
+        sc_msg = "Aviso ao registrar atalhos: %s" % e
 
-    msg = "패드 적용 완료. " + sc_msg
+    msg = "Configuração gravada no dispositivo. " + sc_msg
     if warnings:
-        msg += "\n주의:\n- " + "\n- ".join(warnings)
+        msg += "\nAtenção:\n- " + "\n- ".join(warnings)
     return True, msg
 
 
@@ -243,7 +243,7 @@ def make_gui(run=True):
     class Main(QtWidgets.QMainWindow):
         def __init__(self):
             super().__init__()
-            self.setWindowTitle("MacroPad 설정 (ch57x 1189:8890)")
+            self.setWindowTitle("Configuração do MacroPad (ch57x 1189:8890)")
             self.state = load_state()
             self.sel = ("button", 0)
             self._build()
@@ -256,7 +256,7 @@ def make_gui(run=True):
             root = QtWidgets.QHBoxLayout(central)
 
             left = QtWidgets.QVBoxLayout()
-            left.addWidget(QtWidgets.QLabel("<b>버튼 (3 x 2)</b>"))
+            left.addWidget(QtWidgets.QLabel("<b>Teclas (3 x 2)</b>"))
             grid = QtWidgets.QGridLayout()
             self.cell_btns = []
             for i in range(6):
@@ -266,7 +266,7 @@ def make_gui(run=True):
                 grid.addWidget(b, i // 3, i % 3)
                 self.cell_btns.append(b)
             left.addLayout(grid)
-            left.addWidget(QtWidgets.QLabel("<b>노브</b>"))
+            left.addWidget(QtWidgets.QLabel("<b>Botão giratório</b>"))
             knob = QtWidgets.QHBoxLayout()
             self.knob_btns = {}
             for k in ("ccw", "press", "cw"):
@@ -282,15 +282,15 @@ def make_gui(run=True):
             right = QtWidgets.QVBoxLayout()
             self.sel_label = QtWidgets.QLabel()
             right.addWidget(self.sel_label)
-            right.addWidget(QtWidgets.QLabel("동작 종류"))
+            right.addWidget(QtWidgets.QLabel("Tipo de ação"))
             self.type_combo = QtWidgets.QComboBox()
-            self.type_combo.addItem("키 / 단축키", "key")
-            self.type_combo.addItem("미디어 / 볼륨", "media")
-            self.type_combo.addItem("앱 실행", "launch")
+            self.type_combo.addItem("Tecla / Atalho", "key")
+            self.type_combo.addItem("Mídia / Volume", "media")
+            self.type_combo.addItem("Abrir aplicativo", "launch")
             self.type_combo.currentIndexChanged.connect(self._type_changed)
             right.addWidget(self.type_combo)
 
-            right.addWidget(QtWidgets.QLabel("값"))
+            right.addWidget(QtWidgets.QLabel("Valor"))
             self.key_combo = QtWidgets.QComboBox()
             self.key_combo.setEditable(True)
             self.key_combo.addItems(KEY_PRESETS)
@@ -312,16 +312,16 @@ def make_gui(run=True):
             self.hint.setWordWrap(True)
             right.addWidget(self.hint)
 
-            self.apply_slot_btn = QtWidgets.QPushButton("이 슬롯에 반영(임시)")
+            self.apply_slot_btn = QtWidgets.QPushButton("Salvar configuração da tecla")
             self.apply_slot_btn.clicked.connect(self._save_slot)
             right.addWidget(self.apply_slot_btn)
 
             right.addStretch(1)
-            self.upload_btn = QtWidgets.QPushButton("💾 저장 & 패드에 적용")
+            self.upload_btn = QtWidgets.QPushButton("💾 Salvar e gravar no dispositivo")
             self.upload_btn.setStyleSheet("font-weight:bold;padding:8px;")
             self.upload_btn.clicked.connect(self._apply_all)
             right.addWidget(self.upload_btn)
-            self.status = QtWidgets.QLabel("준비됨")
+            self.status = QtWidgets.QLabel("Pronto")
             self.status.setWordWrap(True)
             right.addWidget(self.status)
             root.addLayout(right)
@@ -340,7 +340,7 @@ def make_gui(run=True):
         def _load_editor(self):
             kind, key = self.sel
             name = BUTTON_LABELS[key] if kind == "button" else KNOB_LABELS[key]
-            self.sel_label.setText("<b>선택: %s</b>" % name)
+            self.sel_label.setText("<b>Selecionado: %s</b>" % name)
             a = self._cur_action()
             idx = {"key": 0, "media": 1, "launch": 2}.get(a.get("type"), 0)
             self.type_combo.setCurrentIndex(idx)
@@ -365,9 +365,9 @@ def make_gui(run=True):
             self.media_combo.setVisible(t == "media")
             self.app_combo.setVisible(t == "launch")
             hints = {
-                "key": "키 이름 또는 조합. 예: 1 · escape · f5 · ctrl-c · alt-tab · left",
-                "media": "노브 회전에 볼륨▲/▼ 지정하면 볼륨 다이얼처럼 사용 가능",
-                "launch": "명령 입력 시 F14~F18 자동배정 + GNOME 단축키 등록. 예: code, firefox",
+                "key": "Nome da tecla ou combinação. Ex.: 1 · escape · f5 · ctrl-c · alt-tab · left",
+                "media": "Associe aumentar/diminuir volume à rotação para usar como controle de volume.",
+                "launch": "Informe um comando (ex.: code, firefox). Atribui F14 a F18 e registra atalho no GNOME.",
             }
             self.hint.setText(hints.get(t, ""))
 
@@ -380,9 +380,9 @@ def make_gui(run=True):
                 typed = self.app_combo.currentText().strip()
                 if (idx >= 0 and self.app_combo.itemText(idx) == typed
                         and self.app_combo.itemData(idx)):
-                    v = self.app_combo.itemData(idx)   # 프리셋 선택
+                    v = self.app_combo.itemData(idx)   # Opção predefinida selecionada.
                 else:
-                    v = typed                          # 직접 입력한 명령
+                    v = typed                          # Comando digitado manualmente.
             else:
                 v = self.key_combo.currentText().strip()
             a = self._cur_action()
@@ -390,15 +390,15 @@ def make_gui(run=True):
             a["value"] = v
             save_state(self.state)
             self._refresh_cells()
-            self.status.setText("슬롯 저장됨 (아직 패드 미적용 — '저장 & 패드에 적용' 눌러야 반영)")
+            self.status.setText("Ação salva localmente. Para gravar no dispositivo, clique em 'Salvar e gravar no dispositivo'.")
 
         def _summary(self, a):
             t, v = a.get("type"), a.get("value", "")
             if t == "media":
-                return "미디어: %s" % dict(MEDIA_OPTIONS).get(v, v)
+                return "Mídia: %s" % dict(MEDIA_OPTIONS).get(v, v)
             if t == "launch":
-                return "실행: %s" % v
-            return "키: %s" % v
+                return "Executar: %s" % v
+            return "Tecla: %s" % v
 
         def _refresh_cells(self):
             for i, b in enumerate(self.cell_btns):
@@ -414,7 +414,7 @@ def make_gui(run=True):
 
         def _apply_all(self):
             self._save_slot()
-            self.status.setText("적용 중...")
+            self.status.setText("Gravando configuração...")
             QtWidgets.QApplication.processEvents()
             ok, msg = apply_state(self.state)
             self.status.setText(("✅ " if ok else "❌ ") + msg)
